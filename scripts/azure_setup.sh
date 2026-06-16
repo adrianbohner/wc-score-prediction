@@ -192,8 +192,11 @@ EXISTING_CLIENT_ID=$(az ad sp list \
   --query "[0].appId" -o tsv 2>/dev/null)
 
 if [ -n "${EXISTING_CLIENT_ID}" ] && [ "${EXISTING_CLIENT_ID}" != "None" ]; then
-  echo "  Service principal already exists, reusing."
+  echo "  Service principal already exists, resetting credentials..."
   SP_CLIENT_ID="${EXISTING_CLIENT_ID}"
+  SP_SECRET=$(az ad sp credential reset \
+    --id "${SP_CLIENT_ID}" \
+    --query password -o tsv)
 else
   SP_JSON=$(az ad sp create-for-rbac \
     --name "${SP_NAME}" \
@@ -201,6 +204,7 @@ else
     --scopes "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}" \
     --output json)
   SP_CLIENT_ID=$(echo "${SP_JSON}" | jq -r .appId)
+  SP_SECRET=$(echo "${SP_JSON}" | jq -r .password)
 fi
 
 SP_OBJECT_ID=$(az ad sp show --id "${SP_CLIENT_ID}" --query id -o tsv)
@@ -248,16 +252,21 @@ echo ""
 echo "================================================================"
 echo "  Setup complete."
 echo ""
-echo "  Add these 7 values to GitHub Secrets:"
+echo "  Add these 5 values to GitHub Secrets:"
 echo "  (Repo → Settings → Secrets and variables → Actions → New secret)"
 echo "================================================================"
-echo "  AZURE_TENANT_ID              = ${TENANT_ID}"
-echo "  AZURE_SUBSCRIPTION_ID        = ${SUBSCRIPTION_ID}"
 echo "  AZURE_RESOURCE_GROUP         = ${RESOURCE_GROUP}"
 echo "  AZURE_WEBAPP_NAME            = ${APP_NAME}"
-echo "  AZURE_CLIENT_ID              = ${SP_CLIENT_ID}"
 echo "  AZURE_STORAGE_ACCOUNT_NAME   = ${STORAGE_ACCOUNT_NAME}"
 echo "  AZURE_STORAGE_CONTAINER_NAME = ${STORAGE_CONTAINER_NAME}"
+echo ""
+echo "  AZURE_CREDENTIALS (paste the entire block as one secret value):"
+echo "  {"
+echo "    \"clientId\": \"${SP_CLIENT_ID}\","
+echo "    \"clientSecret\": \"${SP_SECRET}\","
+echo "    \"subscriptionId\": \"${SUBSCRIPTION_ID}\","
+echo "    \"tenantId\": \"${TENANT_ID}\""
+echo "  }"
 echo "================================================================"
 echo ""
 echo "  MODEL_ARTIFACT_SAS_URL has been written directly to App Service"
