@@ -230,18 +230,27 @@ def _pipeline_to_arrays(pipeline: Pipeline) -> dict:
 
 
 def _pipeline_from_arrays(arrays: dict) -> Pipeline:
+    n_features = arrays["scaler_n_features_in"]
+    # Two-sample dummy fit so sklearn initialises all internal state
+    # (_base_loss on PoissonRegressor, validation state on StandardScaler).
+    # Learned parameters are replaced immediately after.
+    dummy_X = np.zeros((2, n_features))
+    dummy_y = np.ones(2)
+
     scaler = StandardScaler()
+    scaler.fit(dummy_X)
     scaler.mean_ = np.array(arrays["scaler_mean"])
     scaler.scale_ = np.array(arrays["scaler_scale"])
     scaler.var_ = np.array(arrays["scaler_var"])
     scaler.n_samples_seen_ = arrays["scaler_n_samples_seen"]
-    scaler.n_features_in_ = arrays["scaler_n_features_in"]
+    scaler.n_features_in_ = n_features
 
     model = PoissonRegressor(alpha=arrays["model_alpha"], max_iter=arrays["model_max_iter"])
+    model.fit(dummy_X, dummy_y)
     model.coef_ = np.array(arrays["model_coef"])
     model.intercept_ = np.array(arrays["model_intercept"])
     model.n_iter_ = arrays["model_n_iter"]
-    model.n_features_in_ = arrays["model_n_features_in"]
+    model.n_features_in_ = n_features
 
     return Pipeline(steps=[("scaler", scaler), ("model", model)])
 
