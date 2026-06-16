@@ -184,7 +184,7 @@ az webapp config set \
   --output none
 
 # ------------------------------------------------------------------
-# 7. Service principal for GitHub Actions (OIDC — no client secret)
+# 7. Service principal for GitHub Actions
 # ------------------------------------------------------------------
 echo "[7/8] Creating service principal for GitHub Actions (OIDC)..."
 EXISTING_CLIENT_ID=$(az ad sp list \
@@ -208,6 +208,23 @@ else
 fi
 
 SP_OBJECT_ID=$(az ad sp show --id "${SP_CLIENT_ID}" --query id -o tsv)
+
+# Grant Contributor on the resource group (needed for App Service deploy)
+EXISTING_CONTRIBUTOR=$(az role assignment list \
+  --assignee "${SP_OBJECT_ID}" \
+  --role "Contributor" \
+  --scope "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}" \
+  --query "[0].id" -o tsv 2>/dev/null)
+
+if [ -z "${EXISTING_CONTRIBUTOR}" ] || [ "${EXISTING_CONTRIBUTOR}" = "None" ]; then
+  az role assignment create \
+    --assignee "${SP_OBJECT_ID}" \
+    --role "Contributor" \
+    --scope "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}" \
+    --output none
+else
+  echo "  Contributor role already assigned, skipping."
+fi
 
 # Grant Storage Blob Data Contributor so the retrain workflow can upload artifacts
 EXISTING_ROLE=$(az role assignment list \
