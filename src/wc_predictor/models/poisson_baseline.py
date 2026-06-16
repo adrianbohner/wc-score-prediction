@@ -191,9 +191,59 @@ class SimplePoissonScoreModel:
             ]
         )
 
+    def __getstate__(self) -> dict:
+        state = self.__dict__.copy()
+        if "home_model_" in state:
+            state["home_model_"] = _pipeline_to_arrays(state["home_model_"])
+        if "away_model_" in state:
+            state["away_model_"] = _pipeline_to_arrays(state["away_model_"])
+        return state
+
+    def __setstate__(self, state: dict) -> None:
+        if "home_model_" in state and isinstance(state["home_model_"], dict):
+            state["home_model_"] = _pipeline_from_arrays(state["home_model_"])
+        if "away_model_" in state and isinstance(state["away_model_"], dict):
+            state["away_model_"] = _pipeline_from_arrays(state["away_model_"])
+        self.__dict__.update(state)
+
     def _check_is_fitted(self) -> None:
         if not hasattr(self, "home_model_") or not hasattr(self, "away_model_"):
             raise DataValidationError("SimplePoissonScoreModel must be fitted before prediction")
+
+
+def _pipeline_to_arrays(pipeline: Pipeline) -> dict:
+    scaler: StandardScaler = pipeline.named_steps["scaler"]
+    model: PoissonRegressor = pipeline.named_steps["model"]
+    return {
+        "scaler_mean": scaler.mean_.tolist(),
+        "scaler_scale": scaler.scale_.tolist(),
+        "scaler_var": scaler.var_.tolist(),
+        "scaler_n_samples_seen": int(scaler.n_samples_seen_),
+        "scaler_n_features_in": int(scaler.n_features_in_),
+        "model_coef": model.coef_.tolist(),
+        "model_intercept": np.atleast_1d(model.intercept_).tolist(),
+        "model_n_iter": int(model.n_iter_),
+        "model_n_features_in": int(model.n_features_in_),
+        "model_alpha": float(model.alpha),
+        "model_max_iter": int(model.max_iter),
+    }
+
+
+def _pipeline_from_arrays(arrays: dict) -> Pipeline:
+    scaler = StandardScaler()
+    scaler.mean_ = np.array(arrays["scaler_mean"])
+    scaler.scale_ = np.array(arrays["scaler_scale"])
+    scaler.var_ = np.array(arrays["scaler_var"])
+    scaler.n_samples_seen_ = arrays["scaler_n_samples_seen"]
+    scaler.n_features_in_ = arrays["scaler_n_features_in"]
+
+    model = PoissonRegressor(alpha=arrays["model_alpha"], max_iter=arrays["model_max_iter"])
+    model.coef_ = np.array(arrays["model_coef"])
+    model.intercept_ = np.array(arrays["model_intercept"])
+    model.n_iter_ = arrays["model_n_iter"]
+    model.n_features_in_ = arrays["model_n_features_in"]
+
+    return Pipeline(steps=[("scaler", scaler), ("model", model)])
 
 
 def score_matrix_from_expected_goals(
