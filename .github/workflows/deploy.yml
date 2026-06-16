@@ -56,4 +56,4 @@ jobs:
             --name ${{ secrets.AZURE_WEBAPP_NAME }} \
             --src-path dist.zip \
             --type zip \
-            --async false
+            --async true
