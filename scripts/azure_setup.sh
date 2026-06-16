@@ -234,7 +234,7 @@ if [ -z "${EXISTING_CRED}" ] || [ "${EXISTING_CRED}" = "None" ]; then
       \"name\": \"github-main\",
       \"issuer\": \"https://token.actions.githubusercontent.com\",
       \"subject\": \"repo:${GITHUB_ORG}/${GITHUB_REPO}:ref:refs/heads/main\",
-      \"audiences\": [\"api://AzureADApplications\"]
+      \"audiences\": [\"api://AzureADTokenExchange\"]
     }" \
     --output none
 else

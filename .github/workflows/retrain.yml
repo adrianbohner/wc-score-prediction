@@ -8,9 +8,7 @@ on:
         required: false
         default: "180"
 
-# Required for OIDC login to Azure — no client secret needed.
 permissions:
-  id-token: write
   contents: read
 
 jobs:
@@ -28,10 +26,11 @@ jobs:
       - name: Install package
         run: pip install -e .
 
-      - name: Log in to Azure (OIDC)
+      - name: Log in to Azure
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
