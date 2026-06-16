@@ -1,0 +1,2 @@
+[console_scripts]
+train-wc-model = wc_predictor.models.train_app_model:main

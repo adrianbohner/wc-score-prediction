@@ -1,0 +1,35 @@
+training:
+  start_date: "1990-01-01"
+  prediction_cutoff_date: "2026-06-01"
+  use_time_decay: true
+  half_life_days: 1460
+  friendly_weight: 0.5
+
+elo:
+  initial_rating: 1500
+  base_k: 30
+  min_k: 8
+  max_k: 40
+  home_advantage: 0
+
+features:
+  rolling_windows: [5, 10]
+  include_scorer_features: false
+
+model:
+  # Allowed values: poisson | dixon_coles | team_strength | ensemble
+  # ensemble averages Poisson GLM and team_strength score matrices.
+  selected_type: "ensemble"
+  preferred_type: "ensemble"
+  fallback_type: "poisson"
+  max_goals: 8
+  rho_bounds: [-0.3, 0.3]
+  tune_alpha: true
+  alpha_candidates: [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0]
+
+ui:
+  default_venue_mode: "neutral"
+  alternative_scoreline_count: 5
+  confidence_thresholds:
+    low_max: 0.12
+    medium_max: 0.18

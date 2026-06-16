@@ -1,0 +1,70 @@
+name: Retrain Model
+
+on:
+  workflow_dispatch:
+    inputs:
+      holdout_days:
+        description: "Days of recent data held out for validation"
+        required: false
+        default: "180"
+
+# Required for OIDC login to Azure — no client secret needed.
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package
+        run: pip install -e .
+
+      - name: Log in to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Download latest results.csv from blob storage
+        # Falls back to the file committed in the repo if the blob doesn't exist yet.
+        run: |
+          az storage blob download \
+            --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }} \
+            --container-name ${{ secrets.AZURE_STORAGE_CONTAINER_NAME }} \
+            --name results.csv \
+            --file data/raw/results.csv \
+            --auth-mode login \
+            --output none
+        continue-on-error: true
+
+      - name: Train model
+        run: |
+          python -m wc_predictor.models.train_app_model \
+            --holdout-days ${{ github.event.inputs.holdout_days }}
+
+      - name: Upload new model artifact to blob storage
+        run: |
+          az storage blob upload \
+            --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }} \
+            --container-name ${{ secrets.AZURE_STORAGE_CONTAINER_NAME }} \
+            --name match_score_model.pkl \
+            --file models/match_score_model.pkl \
+            --overwrite \
+            --auth-mode login \
+            --output none
+
+      - name: Restart App Service to pick up new model
+        run: |
+          az webapp restart \
+            --name ${{ secrets.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }}
